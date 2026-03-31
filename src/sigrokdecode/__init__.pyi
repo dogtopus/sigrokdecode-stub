@@ -2,11 +2,6 @@ from abc import abstractmethod
 from typing import Any, ClassVar, Dict, List, Literal, NotRequired, Optional, Protocol, Tuple, TypeAlias, TypedDict, Union
 
 
-'''
-sigrokdecode module
-'''
-
-
 GVariantBridge: TypeAlias = Union[int, float, str]
 
 
@@ -39,24 +34,42 @@ NameDescList: TypeAlias = Tuple[NameDescPair, ...]
 AnnotationRowList: TypeAlias = Tuple[NameDescClasses, ...]
 
 
+OptionValues: TypeAlias = Dict[str, GVariantBridge]
+'''
+Option values on an instantiated decoder object.
+
+Python does not allow typing class variables and instance variables as
+unrelated types, so to type the instance variable on access, manual casting
+is required:
+
+>>> instance_options = cast(OptionValues, self.options)
+>>> reveal_type(instance_options)
+'''
+
+
 class Decoder(Protocol):
     '''
-    The decoder abstract class.
-
-    Decoder supports
+    The decoder abstract class. All decoders shall be built upon this class and
+    implement all abstract methods.
+    
+    Note that Python type checkers do not enforce concrete classes during
+    declaration, only on instantiation. Therefore one needs to instantiate
+    the resulting decoder (preferably wrapped in TYPE_CHECKING) to ensure
+    that all required attributes and methods are present in the final decoder
+    class.
     '''
 
     api_version: ClassVar[int]
-    'API version.'
+    'API version. Should be 3 for all modern decoders.'
 
     id: ClassVar[str]
     'Decoder ID.'
 
     name: ClassVar[str]
-    'Display name of the decoder.'
+    'Short display name of the decoder.'
 
     longname: ClassVar[str]
-    'Display name of the decoder but longer.'
+    'Long display name of the decoder.'
 
     desc: ClassVar[str]
     'Decoder description.'
@@ -75,6 +88,15 @@ class Decoder(Protocol):
     Decoder category tags. See libsigrokdecode/HACKING for a list of known
     tags.
     '''
+
+    matched: Optional[Tuple[int, ...]]
+    'Input channel match state.'
+
+    samplenum: int
+    'Input sample offset'
+
+    # Bad sigrok, very bad sigrok
+    #options: OptionValues
 
     # TODO: data is typed as Any for now, but we may switch to a int+Generic
     # setup that allows data to be typed as long as the user passes something
@@ -125,10 +147,6 @@ class Decoder(Protocol):
         '''
         ...
 
-    # Not defined in Decoder class, but are necessary for the decoder to function.
-    @abstractmethod
-    def decode(self, start_sample: int, end_sample: int, data: Any, /) -> None: ...
-
     @abstractmethod
     def start(self) -> None:
         '''
@@ -136,6 +154,44 @@ class Decoder(Protocol):
         registering the output channels should be done here.
         '''
         ...
+
+
+class AsBottom(Protocol):
+    '''
+    Decoder is at the bottom of the decoder stack.
+    '''
+    @abstractmethod
+    def decode(self, /) -> None:
+        '''
+        Process decoder request from libsigrokdecode.
+        '''
+        ...
+
+
+class AsStacked(Protocol):
+    '''
+    Decoder is on top of other decoder(s).
+    '''
+    @abstractmethod
+    def decode(self, start_sample: int, end_sample: int, data: Any, /) -> None:
+        '''
+        Process custom decode request from other decoders.
+        '''
+        ...
+
+
+class BottomDecoder(Decoder, AsBottom, Protocol):
+    '''
+    Base class for a bottom decoder.
+    '''
+    pass
+
+
+class StackedDecoder(Decoder, AsStacked, Protocol):
+    '''
+    Base class for a stacked decoder.
+    '''
+    pass
 
 
 class HasOptions(Protocol):
