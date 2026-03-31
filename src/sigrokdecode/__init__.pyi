@@ -7,8 +7,7 @@ sigrokdecode module
 '''
 
 
-GVariantBridge = Union[int, float, str]
-NameDescPair = Tuple[str, str]
+GVariantBridge: TypeAlias = Union[int, float, str]
 
 
 class OptionEntry(TypedDict):
@@ -24,17 +23,20 @@ class ChannelEntry(TypedDict):
     desc: str
 
 
-ChannelList: TypeAlias = Tuple[ChannelEntry, ...]
-
+NameDescPair: TypeAlias = Tuple[str, str]
+NameDescClasses: TypeAlias = Tuple[str, str, Tuple[int, ...]]
 ChannelId: TypeAlias = Union[int, str]
 ChannelCondition: TypeAlias = Literal['h', 'l', 'r', 'f', 'e', 'skip']
+
+
 Condition: TypeAlias = Dict[ChannelId, ChannelCondition]
 ConditionList: TypeAlias = Union[List[Condition], Condition]
 
 
 OptionList: TypeAlias = Tuple[OptionEntry, ...]
+ChannelList: TypeAlias = Tuple[ChannelEntry, ...]
 NameDescList: TypeAlias = Tuple[NameDescPair, ...]
-AnnotationRowList: TypeAlias = Tuple[str, str, Tuple[int, ...]]
+AnnotationRowList: TypeAlias = Tuple[NameDescClasses, ...]
 
 
 class Decoder(Protocol):
