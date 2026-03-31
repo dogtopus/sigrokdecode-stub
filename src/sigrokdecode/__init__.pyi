@@ -1,4 +1,6 @@
-from typing import Any, ClassVar, Dict, List, Literal, NotRequired, Protocol, Tuple, TypedDict, Union
+from abc import abstractmethod
+from typing import Any, ClassVar, Dict, List, Literal, NotRequired, Optional, Protocol, Tuple, TypeAlias, TypedDict, Union
+
 
 '''
 sigrokdecode module
@@ -22,463 +24,219 @@ class ChannelEntry(TypedDict):
     desc: str
 
 
-ChannelList = Tuple[ChannelEntry, ...]
+ChannelList: TypeAlias = Tuple[ChannelEntry, ...]
+
+ChannelId: TypeAlias = Union[int, str]
+ChannelCondition: TypeAlias = Literal['h', 'l', 'r', 'f', 'e', 'skip']
+Condition: TypeAlias = Dict[ChannelId, ChannelCondition]
+ConditionList: TypeAlias = Union[List[Condition], Condition]
 
 
-ChannelId = Union[int, str]
-ChannelCondition = Literal['h', 'l', 'r', 'f', 'e', 'skip']
-Condition = Dict[ChannelId, ChannelCondition]
-ConditionList = Union[List[Condition], Condition]
+OptionList: TypeAlias = Tuple[OptionEntry, ...]
+AnnotationList: TypeAlias = Tuple[NameDescPair, ...]
+AnnotationRowList: TypeAlias = Tuple[str, str, Tuple[int, ...]]
+BinaryList: TypeAlias = Tuple[NameDescPair, ...]
 
 
-OptionList = Tuple[OptionEntry, ...]
-AnnotationList = Tuple[NameDescPair, ...]
-AnnotationRowList = Tuple[str, str, Tuple[int, ...]]
-BinaryList = Tuple[NameDescPair, ...]
-
-
-class DecoderHeaderBase(Protocol):
+class Decoder(Protocol):
     '''
-    Required decoder header fields.
+    The decoder abstract class.
 
-    All decoders must have these fields set.
+    Decoder supports
     '''
-    
+
     api_version: ClassVar[int]
+    'API version.'
+
     id: ClassVar[str]
+    'Decoder ID.'
+
     name: ClassVar[str]
+    'Display name of the decoder.'
+
     longname: ClassVar[str]
+    'Display name of the decoder but longer.'
+
     desc: ClassVar[str]
+    'Decoder description.'
+
     license: ClassVar[str]
+    'Decoder code license.'
+
     inputs: ClassVar[List[str]]
+    'List of inputs.'
+
     outputs: ClassVar[List[str]]
+    'List of outputs.'
+
     tags: ClassVar[List[str]]
+    '''
+    Decoder category tags. See libsigrokdecode/HACKING for a list of known
+    tags.
+    '''
 
-    def decode(self, start_sample: int, end_sample: int, data: Any) -> None: ...
+    # TODO: data is typed as Any for now, but we may switch to a int+Generic
+    # setup that allows data to be typed as long as the user passes something
+    # returned by register() into output_id.
+    def put(self, start_sample: int, end_sample: int, output_id: int, data: Any, /) -> None:
+        '''
+        Put an annotation for the specified span of samples.
+
+        Arguments: start and end sample number, stream id, annotation data.
+        Annotation data's layout depends on the output stream type.
+        '''
+        ...
+
+    def register(self, output_type: int, /, proto_id: str = ..., meta: Tuple[Union[int, float], str, str] = ...) -> int:
+        '''
+        Register a new output stream.
+        
+        Returns an output stream ID that can be used later with put().
+        '''
+        ...
+
+    def wait(self, condition: Optional[ConditionList], /) -> Optional[Tuple[int, ...]]:
+        '''
+        Wait for one or more conditions to occur.
+
+        Returns the sample data at the next position where the condition
+        is seen. When the optional condition is missing or empty, the next
+        sample number is used. The condition can be a dictionary with one
+        condition's details, or a list of dictionaries specifying multiple
+        conditions of which at least one condition must be true. Dicts can
+        contain one or more key/value pairs, all of which must be true for
+        the dict's condition to be considered true. The key either is a
+        channel index or a keyword, the value is the operation's parameter.
+
+        Supported parameters for channel number keys: 'h', 'l', 'r', 'f',
+        or 'e' for level or edge conditions. Other supported keywords:
+        'skip' to advance over the given number of samples.
+        '''
+        ...
+
+    def has_channel(self, index: int, /) -> bool:
+        '''
+        Check whether input data is supplied for a given channel.
+
+        Argument: A channel index.
+        Returns: A boolean, True if the channel is connected,
+        False if the channel is open (won't see any input data).
+        '''
+        ...
+
+    # Not defined in Decoder class, but are necessary for the decoder to function.
+    @abstractmethod
+    def decode(self, start_sample: int, end_sample: int, data: Any, /) -> None: ...
+
+    @abstractmethod
+    def start(self) -> None:
+        '''
+        Prepare the decoder after initialization. Generally things like
+        registering the output channels should be done here.
+        '''
+        ...
 
 
-### BEGIN FRAGS DEFINE
-### ('options', 'OptionList')
-### ('channels', 'ChannelList')
-### ('optional_channels', 'ChannelList')
-### ('annotations', 'AnnotationList')
-### ('annotation_rows', 'AnnotationRowList')
-### ('binary', 'BinaryList')
-### END FRAGS DEFINE
-### BEGIN FRAGS GENERATED
-class DecoderHeaderFrag1(DecoderHeaderBase, Protocol):
+class HasOptions(Protocol):
+    '''
+    Mark the decoder as that it provides custom options.
+    '''
     options: ClassVar[OptionList]
 
 
-class DecoderHeaderFrag2(DecoderHeaderBase, Protocol):
+class HasChannels(Protocol):
+    '''
+    Mark the decoder as that it provides output channel descriptions.
+    '''
     channels: ClassVar[ChannelList]
 
 
-class DecoderHeaderFrag3(DecoderHeaderBase, Protocol):
-    options: ClassVar[OptionList]
-    channels: ClassVar[ChannelList]
-
-
-class DecoderHeaderFrag4(DecoderHeaderBase, Protocol):
+class HasOptionalChannels(Protocol):
+    '''
+    Mark the decoder as that it provides optional output channel descriptions.
+    '''
     optional_channels: ClassVar[ChannelList]
 
 
-class DecoderHeaderFrag5(DecoderHeaderBase, Protocol):
-    options: ClassVar[OptionList]
-    optional_channels: ClassVar[ChannelList]
-
-
-class DecoderHeaderFrag6(DecoderHeaderBase, Protocol):
-    channels: ClassVar[ChannelList]
-    optional_channels: ClassVar[ChannelList]
-
-
-class DecoderHeaderFrag7(DecoderHeaderBase, Protocol):
-    options: ClassVar[OptionList]
-    channels: ClassVar[ChannelList]
-    optional_channels: ClassVar[ChannelList]
-
-
-class DecoderHeaderFrag8(DecoderHeaderBase, Protocol):
+class HasAnnotations(Protocol):
+    '''
+    Mark the decoder as that it provides annotation type mappings.
+    '''
     annotations: ClassVar[AnnotationList]
 
 
-class DecoderHeaderFrag9(DecoderHeaderBase, Protocol):
-    options: ClassVar[OptionList]
-    annotations: ClassVar[AnnotationList]
-
-
-class DecoderHeaderFrag10(DecoderHeaderBase, Protocol):
-    channels: ClassVar[ChannelList]
-    annotations: ClassVar[AnnotationList]
-
-
-class DecoderHeaderFrag11(DecoderHeaderBase, Protocol):
-    options: ClassVar[OptionList]
-    channels: ClassVar[ChannelList]
-    annotations: ClassVar[AnnotationList]
-
-
-class DecoderHeaderFrag12(DecoderHeaderBase, Protocol):
-    optional_channels: ClassVar[ChannelList]
-    annotations: ClassVar[AnnotationList]
-
-
-class DecoderHeaderFrag13(DecoderHeaderBase, Protocol):
-    options: ClassVar[OptionList]
-    optional_channels: ClassVar[ChannelList]
-    annotations: ClassVar[AnnotationList]
-
-
-class DecoderHeaderFrag14(DecoderHeaderBase, Protocol):
-    channels: ClassVar[ChannelList]
-    optional_channels: ClassVar[ChannelList]
-    annotations: ClassVar[AnnotationList]
-
-
-class DecoderHeaderFrag15(DecoderHeaderBase, Protocol):
-    options: ClassVar[OptionList]
-    channels: ClassVar[ChannelList]
-    optional_channels: ClassVar[ChannelList]
-    annotations: ClassVar[AnnotationList]
-
-
-class DecoderHeaderFrag16(DecoderHeaderBase, Protocol):
+class HasAnnotationRows(Protocol):
+    '''
+    Mark the decoder as that it provides annotation row ("channel")
+    descriptions.
+    '''
     annotation_rows: ClassVar[AnnotationRowList]
 
 
-class DecoderHeaderFrag17(DecoderHeaderBase, Protocol):
-    options: ClassVar[OptionList]
-    annotation_rows: ClassVar[AnnotationRowList]
-
-
-class DecoderHeaderFrag18(DecoderHeaderBase, Protocol):
-    channels: ClassVar[ChannelList]
-    annotation_rows: ClassVar[AnnotationRowList]
-
-
-class DecoderHeaderFrag19(DecoderHeaderBase, Protocol):
-    options: ClassVar[OptionList]
-    channels: ClassVar[ChannelList]
-    annotation_rows: ClassVar[AnnotationRowList]
-
-
-class DecoderHeaderFrag20(DecoderHeaderBase, Protocol):
-    optional_channels: ClassVar[ChannelList]
-    annotation_rows: ClassVar[AnnotationRowList]
-
-
-class DecoderHeaderFrag21(DecoderHeaderBase, Protocol):
-    options: ClassVar[OptionList]
-    optional_channels: ClassVar[ChannelList]
-    annotation_rows: ClassVar[AnnotationRowList]
-
-
-class DecoderHeaderFrag22(DecoderHeaderBase, Protocol):
-    channels: ClassVar[ChannelList]
-    optional_channels: ClassVar[ChannelList]
-    annotation_rows: ClassVar[AnnotationRowList]
-
-
-class DecoderHeaderFrag23(DecoderHeaderBase, Protocol):
-    options: ClassVar[OptionList]
-    channels: ClassVar[ChannelList]
-    optional_channels: ClassVar[ChannelList]
-    annotation_rows: ClassVar[AnnotationRowList]
-
-
-class DecoderHeaderFrag24(DecoderHeaderBase, Protocol):
-    annotations: ClassVar[AnnotationList]
-    annotation_rows: ClassVar[AnnotationRowList]
-
-
-class DecoderHeaderFrag25(DecoderHeaderBase, Protocol):
-    options: ClassVar[OptionList]
-    annotations: ClassVar[AnnotationList]
-    annotation_rows: ClassVar[AnnotationRowList]
-
-
-class DecoderHeaderFrag26(DecoderHeaderBase, Protocol):
-    channels: ClassVar[ChannelList]
-    annotations: ClassVar[AnnotationList]
-    annotation_rows: ClassVar[AnnotationRowList]
-
-
-class DecoderHeaderFrag27(DecoderHeaderBase, Protocol):
-    options: ClassVar[OptionList]
-    channels: ClassVar[ChannelList]
-    annotations: ClassVar[AnnotationList]
-    annotation_rows: ClassVar[AnnotationRowList]
-
-
-class DecoderHeaderFrag28(DecoderHeaderBase, Protocol):
-    optional_channels: ClassVar[ChannelList]
-    annotations: ClassVar[AnnotationList]
-    annotation_rows: ClassVar[AnnotationRowList]
-
-
-class DecoderHeaderFrag29(DecoderHeaderBase, Protocol):
-    options: ClassVar[OptionList]
-    optional_channels: ClassVar[ChannelList]
-    annotations: ClassVar[AnnotationList]
-    annotation_rows: ClassVar[AnnotationRowList]
-
-
-class DecoderHeaderFrag30(DecoderHeaderBase, Protocol):
-    channels: ClassVar[ChannelList]
-    optional_channels: ClassVar[ChannelList]
-    annotations: ClassVar[AnnotationList]
-    annotation_rows: ClassVar[AnnotationRowList]
-
-
-class DecoderHeaderFrag31(DecoderHeaderBase, Protocol):
-    options: ClassVar[OptionList]
-    channels: ClassVar[ChannelList]
-    optional_channels: ClassVar[ChannelList]
-    annotations: ClassVar[AnnotationList]
-    annotation_rows: ClassVar[AnnotationRowList]
-
-
-class DecoderHeaderFrag32(DecoderHeaderBase, Protocol):
+class HasBinary(Protocol):
+    '''
+    Mark the decoder as that it provides binary stream ("channel")
+    descriptions.
+    '''
     binary: ClassVar[BinaryList]
 
 
-class DecoderHeaderFrag33(DecoderHeaderBase, Protocol):
-    options: ClassVar[OptionList]
-    binary: ClassVar[BinaryList]
-
-
-class DecoderHeaderFrag34(DecoderHeaderBase, Protocol):
-    channels: ClassVar[ChannelList]
-    binary: ClassVar[BinaryList]
-
-
-class DecoderHeaderFrag35(DecoderHeaderBase, Protocol):
-    options: ClassVar[OptionList]
-    channels: ClassVar[ChannelList]
-    binary: ClassVar[BinaryList]
-
-
-class DecoderHeaderFrag36(DecoderHeaderBase, Protocol):
-    optional_channels: ClassVar[ChannelList]
-    binary: ClassVar[BinaryList]
-
-
-class DecoderHeaderFrag37(DecoderHeaderBase, Protocol):
-    options: ClassVar[OptionList]
-    optional_channels: ClassVar[ChannelList]
-    binary: ClassVar[BinaryList]
-
-
-class DecoderHeaderFrag38(DecoderHeaderBase, Protocol):
-    channels: ClassVar[ChannelList]
-    optional_channels: ClassVar[ChannelList]
-    binary: ClassVar[BinaryList]
-
-
-class DecoderHeaderFrag39(DecoderHeaderBase, Protocol):
-    options: ClassVar[OptionList]
-    channels: ClassVar[ChannelList]
-    optional_channels: ClassVar[ChannelList]
-    binary: ClassVar[BinaryList]
-
-
-class DecoderHeaderFrag40(DecoderHeaderBase, Protocol):
-    annotations: ClassVar[AnnotationList]
-    binary: ClassVar[BinaryList]
-
-
-class DecoderHeaderFrag41(DecoderHeaderBase, Protocol):
-    options: ClassVar[OptionList]
-    annotations: ClassVar[AnnotationList]
-    binary: ClassVar[BinaryList]
-
-
-class DecoderHeaderFrag42(DecoderHeaderBase, Protocol):
-    channels: ClassVar[ChannelList]
-    annotations: ClassVar[AnnotationList]
-    binary: ClassVar[BinaryList]
-
-
-class DecoderHeaderFrag43(DecoderHeaderBase, Protocol):
-    options: ClassVar[OptionList]
-    channels: ClassVar[ChannelList]
-    annotations: ClassVar[AnnotationList]
-    binary: ClassVar[BinaryList]
-
-
-class DecoderHeaderFrag44(DecoderHeaderBase, Protocol):
-    optional_channels: ClassVar[ChannelList]
-    annotations: ClassVar[AnnotationList]
-    binary: ClassVar[BinaryList]
-
-
-class DecoderHeaderFrag45(DecoderHeaderBase, Protocol):
-    options: ClassVar[OptionList]
-    optional_channels: ClassVar[ChannelList]
-    annotations: ClassVar[AnnotationList]
-    binary: ClassVar[BinaryList]
-
-
-class DecoderHeaderFrag46(DecoderHeaderBase, Protocol):
-    channels: ClassVar[ChannelList]
-    optional_channels: ClassVar[ChannelList]
-    annotations: ClassVar[AnnotationList]
-    binary: ClassVar[BinaryList]
-
-
-class DecoderHeaderFrag47(DecoderHeaderBase, Protocol):
-    options: ClassVar[OptionList]
-    channels: ClassVar[ChannelList]
-    optional_channels: ClassVar[ChannelList]
-    annotations: ClassVar[AnnotationList]
-    binary: ClassVar[BinaryList]
-
-
-class DecoderHeaderFrag48(DecoderHeaderBase, Protocol):
-    annotation_rows: ClassVar[AnnotationRowList]
-    binary: ClassVar[BinaryList]
-
-
-class DecoderHeaderFrag49(DecoderHeaderBase, Protocol):
-    options: ClassVar[OptionList]
-    annotation_rows: ClassVar[AnnotationRowList]
-    binary: ClassVar[BinaryList]
-
-
-class DecoderHeaderFrag50(DecoderHeaderBase, Protocol):
-    channels: ClassVar[ChannelList]
-    annotation_rows: ClassVar[AnnotationRowList]
-    binary: ClassVar[BinaryList]
-
-
-class DecoderHeaderFrag51(DecoderHeaderBase, Protocol):
-    options: ClassVar[OptionList]
-    channels: ClassVar[ChannelList]
-    annotation_rows: ClassVar[AnnotationRowList]
-    binary: ClassVar[BinaryList]
-
-
-class DecoderHeaderFrag52(DecoderHeaderBase, Protocol):
-    optional_channels: ClassVar[ChannelList]
-    annotation_rows: ClassVar[AnnotationRowList]
-    binary: ClassVar[BinaryList]
-
-
-class DecoderHeaderFrag53(DecoderHeaderBase, Protocol):
-    options: ClassVar[OptionList]
-    optional_channels: ClassVar[ChannelList]
-    annotation_rows: ClassVar[AnnotationRowList]
-    binary: ClassVar[BinaryList]
-
-
-class DecoderHeaderFrag54(DecoderHeaderBase, Protocol):
-    channels: ClassVar[ChannelList]
-    optional_channels: ClassVar[ChannelList]
-    annotation_rows: ClassVar[AnnotationRowList]
-    binary: ClassVar[BinaryList]
-
-
-class DecoderHeaderFrag55(DecoderHeaderBase, Protocol):
-    options: ClassVar[OptionList]
-    channels: ClassVar[ChannelList]
-    optional_channels: ClassVar[ChannelList]
-    annotation_rows: ClassVar[AnnotationRowList]
-    binary: ClassVar[BinaryList]
-
-
-class DecoderHeaderFrag56(DecoderHeaderBase, Protocol):
-    annotations: ClassVar[AnnotationList]
-    annotation_rows: ClassVar[AnnotationRowList]
-    binary: ClassVar[BinaryList]
-
-
-class DecoderHeaderFrag57(DecoderHeaderBase, Protocol):
-    options: ClassVar[OptionList]
-    annotations: ClassVar[AnnotationList]
-    annotation_rows: ClassVar[AnnotationRowList]
-    binary: ClassVar[BinaryList]
-
-
-class DecoderHeaderFrag58(DecoderHeaderBase, Protocol):
-    channels: ClassVar[ChannelList]
-    annotations: ClassVar[AnnotationList]
-    annotation_rows: ClassVar[AnnotationRowList]
-    binary: ClassVar[BinaryList]
-
-
-class DecoderHeaderFrag59(DecoderHeaderBase, Protocol):
-    options: ClassVar[OptionList]
-    channels: ClassVar[ChannelList]
-    annotations: ClassVar[AnnotationList]
-    annotation_rows: ClassVar[AnnotationRowList]
-    binary: ClassVar[BinaryList]
-
-
-class DecoderHeaderFrag60(DecoderHeaderBase, Protocol):
-    optional_channels: ClassVar[ChannelList]
-    annotations: ClassVar[AnnotationList]
-    annotation_rows: ClassVar[AnnotationRowList]
-    binary: ClassVar[BinaryList]
-
-
-class DecoderHeaderFrag61(DecoderHeaderBase, Protocol):
-    options: ClassVar[OptionList]
-    optional_channels: ClassVar[ChannelList]
-    annotations: ClassVar[AnnotationList]
-    annotation_rows: ClassVar[AnnotationRowList]
-    binary: ClassVar[BinaryList]
-
-
-class DecoderHeaderFrag62(DecoderHeaderBase, Protocol):
-    channels: ClassVar[ChannelList]
-    optional_channels: ClassVar[ChannelList]
-    annotations: ClassVar[AnnotationList]
-    annotation_rows: ClassVar[AnnotationRowList]
-    binary: ClassVar[BinaryList]
-
-
-class DecoderHeaderFrag63(DecoderHeaderBase, Protocol):
-    options: ClassVar[OptionList]
-    channels: ClassVar[ChannelList]
-    optional_channels: ClassVar[ChannelList]
-    annotations: ClassVar[AnnotationList]
-    annotation_rows: ClassVar[AnnotationRowList]
-    binary: ClassVar[BinaryList]
-
-
-DecoderHeader = Union[
-    DecoderHeaderBase,
-    DecoderHeaderFrag1, DecoderHeaderFrag2, DecoderHeaderFrag3, DecoderHeaderFrag4,
-    DecoderHeaderFrag5, DecoderHeaderFrag6, DecoderHeaderFrag7, DecoderHeaderFrag8,
-    DecoderHeaderFrag9, DecoderHeaderFrag10, DecoderHeaderFrag11, DecoderHeaderFrag12,
-    DecoderHeaderFrag13, DecoderHeaderFrag14, DecoderHeaderFrag15, DecoderHeaderFrag16,
-    DecoderHeaderFrag17, DecoderHeaderFrag18, DecoderHeaderFrag19, DecoderHeaderFrag20,
-    DecoderHeaderFrag21, DecoderHeaderFrag22, DecoderHeaderFrag23, DecoderHeaderFrag24,
-    DecoderHeaderFrag25, DecoderHeaderFrag26, DecoderHeaderFrag27, DecoderHeaderFrag28,
-    DecoderHeaderFrag29, DecoderHeaderFrag30, DecoderHeaderFrag31, DecoderHeaderFrag32,
-    DecoderHeaderFrag33, DecoderHeaderFrag34, DecoderHeaderFrag35, DecoderHeaderFrag36,
-    DecoderHeaderFrag37, DecoderHeaderFrag38, DecoderHeaderFrag39, DecoderHeaderFrag40,
-    DecoderHeaderFrag41, DecoderHeaderFrag42, DecoderHeaderFrag43, DecoderHeaderFrag44,
-    DecoderHeaderFrag45, DecoderHeaderFrag46, DecoderHeaderFrag47, DecoderHeaderFrag48,
-    DecoderHeaderFrag49, DecoderHeaderFrag50, DecoderHeaderFrag51, DecoderHeaderFrag52,
-    DecoderHeaderFrag53, DecoderHeaderFrag54, DecoderHeaderFrag55, DecoderHeaderFrag56,
-    DecoderHeaderFrag57, DecoderHeaderFrag58, DecoderHeaderFrag59, DecoderHeaderFrag60,
-    DecoderHeaderFrag61, DecoderHeaderFrag62, DecoderHeaderFrag63,
-]
-### END FRAGS GENERATED
-
-
-class Decoder:
-    def put(self, start_sample: int, end_sample: int, output_id: int, data: Any, /) -> None: ...
-    def register(self, output_type: int, proto_id: str = ..., meta: Tuple[type[Any], str, str] = ...) -> None: ...
-    def wait(self, condition: ConditionList | None) -> None: ...
-    def has_channel(self, index: int) -> bool: ...
+class SupportsFlush(Protocol):
+    '''
+    Decoder class supports handling the flush event from libsigrok.
+    '''
+    @abstractmethod
+    def flush(self) -> None:
+        '''
+        Handle the flush event from libsigrokdecode.
+        '''
+        ...
+
+
+class SupportsReset(Protocol):
+    '''
+    Decoder class supports handling the reset event from libsigrok.
+    '''
+    @abstractmethod
+    def reset(self) -> None:
+        '''
+        Handle the reset event from libsigrokdecode.
+
+        The implementation shall reset the protocol decoder to its initial
+        state.
+        '''
+        ...
+
+
+class SupportsMetadata(Protocol):
+    '''
+    Decoder class supports receiving metadata from libsigrok.
+    '''
+    @abstractmethod
+    def metadata(self, key: int, value: int) -> None:
+        '''
+        Receive metadata sent over by libsigrokdecode.
+
+        Currently the only key that is supported is SRD_CONF_SAMPLERATE,
+        which indicates the capture sample rate.
+        '''
+        ...
 
 
 OUTPUT_ANN: int = ...
+'Output type: Annotation'
+
 OUTPUT_PYTHON: int = ...
+'Output type: Custom Python callback'
+
 OUTPUT_BINARY: int = ...
+'Output type: Binary stream'
+
 OUTPUT_LOGIC: int = ...
+'Output type: Logic'
+
 OUTPUT_META: int = ...
+'Output type: Extra metadata from the decoder'
+
 SRD_CONF_SAMPLERATE: int = ...
+'libsigrokdecode metadata type: Capture samplerate'

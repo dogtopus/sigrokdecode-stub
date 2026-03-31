@@ -1,6 +1,6 @@
 [project]
 name = "sigrokdecode-stub"
-version = "0.6.0.20260331"
+version = "0.6.0.20260401"
 description = "Stub version of libsigrokdecode"
 authors = [
     {name = "dogtopus",email = "dogtopus@users.noreply.github.com"}
