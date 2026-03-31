@@ -33,9 +33,8 @@ ConditionList: TypeAlias = Union[List[Condition], Condition]
 
 
 OptionList: TypeAlias = Tuple[OptionEntry, ...]
-AnnotationList: TypeAlias = Tuple[NameDescPair, ...]
+NameDescList: TypeAlias = Tuple[NameDescPair, ...]
 AnnotationRowList: TypeAlias = Tuple[str, str, Tuple[int, ...]]
-BinaryList: TypeAlias = Tuple[NameDescPair, ...]
 
 
 class Decoder(Protocol):
@@ -162,7 +161,7 @@ class HasAnnotations(Protocol):
     '''
     Mark the decoder as that it provides annotation type mappings.
     '''
-    annotations: ClassVar[AnnotationList]
+    annotations: ClassVar[NameDescList]
 
 
 class HasAnnotationRows(Protocol):
@@ -178,7 +177,7 @@ class HasBinary(Protocol):
     Mark the decoder as that it provides binary stream ("channel")
     descriptions.
     '''
-    binary: ClassVar[BinaryList]
+    binary: ClassVar[NameDescList]
 
 
 class SupportsFlush(Protocol):
