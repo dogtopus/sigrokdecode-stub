@@ -101,6 +101,10 @@ class Decoder(Protocol):
     # TODO: data is typed as Any for now, but we may switch to a int+Generic
     # setup that allows data to be typed as long as the user passes something
     # returned by register() into output_id.
+    # (Not possible due to sigrokdecode enforcing list tuples as the only type
+    # that can be taken by data, we can use list[Any] or list[GVariantBridge]
+    # but such type hints are not precise enough to be worthwhile. Mypy plugin
+    # won't work on Pyright on VSCode and on whatever JB uses on their IDEs.)
     def put(self, start_sample: int, end_sample: int, output_id: int, data: Any, /) -> None:
         '''
         Put an annotation for the specified span of samples.
