@@ -76,15 +76,8 @@ class AbstractDecoder(Generic[OPT], Protocol):
     # Bad sigrok, very bad sigrok
     #options: OptionValues
 
-    # TODO: data is typed as Any for now, but we may switch to a int+Generic
-    # setup that allows data to be typed as long as the user passes something
-    # returned by register() into output_id.
-    # (Not possible due to sigrokdecode enforcing list tuples as the only type
-    # that can be taken by data, we can use list[Any] or list[GVariantBridge]
-    # but such type hints are not precise enough to be worthwhile. Mypy plugin
-    # won't work on Pyright on VSCode and on whatever JB uses on their IDEs.)
     @overload
-    def put(self, start_sample: int, end_sample: int, output_id: AnnotationStream, data: ClassDescPair, /) -> None:
+    def put(self, start_sample: int, end_sample: int, output_id: AnnotationStream, data: ClassAnnotationPair, /) -> None:
         '''
         Put an annotation for the specified span of samples.
 
@@ -104,7 +97,7 @@ class AbstractDecoder(Generic[OPT], Protocol):
         ...
 
     @overload
-    def put(self, start_sample: int, end_sample: int, output_id: BinaryStream, data: ClassDescPair, /) -> None:
+    def put(self, start_sample: int, end_sample: int, output_id: BinaryStream, data: ClassBytesPair, /) -> None:
         '''
         Put an annotation for the specified span of samples.
 
@@ -114,7 +107,7 @@ class AbstractDecoder(Generic[OPT], Protocol):
         ...
 
     @overload
-    def put(self, start_sample: int, end_sample: int, output_id: LogicStream, data: ClassDescPair, /) -> None:
+    def put(self, start_sample: int, end_sample: int, output_id: LogicStream, data: ClassBytesPair, /) -> None:
         '''
         Put an annotation for the specified span of samples.
 
@@ -215,6 +208,15 @@ class AbstractDecoder(Generic[OPT], Protocol):
         Argument: A channel index.
         Returns: A boolean, True if the channel is connected,
         False if the channel is open (won't see any input data).
+        '''
+        ...
+
+    def get_options(self) -> OptionMap:
+        '''
+        Read decoder instance option map and cast it appropriately.
+
+        This method is specific to typedsigrokdecode. It is equivalent to
+        accessing self.options in an untyped sigrokdecode decoder instance.
         '''
         ...
 

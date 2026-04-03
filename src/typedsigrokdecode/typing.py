@@ -34,7 +34,9 @@ class ChannelEntry(TypedDict):
     desc: str
 
 
-ClassDescPair: TypeAlias = Tuple[int, str]
+ClassAnnotationPair: TypeAlias = Tuple[int, List[str]]
+'(class, [very long desc, long desc, desc, ...])'
+ClassBytesPair: TypeAlias = Tuple[int, bytes]
 NameDescPair: TypeAlias = Tuple[str, str]
 NameDescClasses: TypeAlias = Tuple[str, str, Tuple[int, ...]]
 ChannelId: TypeAlias = Union[int, str]
@@ -66,17 +68,8 @@ LogicStream = NewType('LogicStream', int)
 MetaStream = NewType('MetaStream', int)
 
 
-OptionValues: TypeAlias = Dict[str, GVariantBridge]
-'''
-Option values on an instantiated decoder object.
-
-Python does not allow typing class variables and instance variables as
-unrelated types, so to type the instance variable on access, manual casting
-is required:
-
->>> instance_options = cast(OptionValues, self.options)
->>> reveal_type(instance_options)
-'''
+OptionMap: TypeAlias = Dict[str, GVariantBridge]
+'Option map set by sigrokdecode on an instantiated decoder object.'
 
 
 IPT = TypeVar('IPT', contravariant=True)
