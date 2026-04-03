@@ -1,12 +1,12 @@
 [project]
 name = "typedsigrokdecode"
-version = "0.6.0.20260401"
+version = "0.6.0.20260403"
 description = "Typed wrapper of libsigrokdecode"
 authors = [
     {name = "dogtopus",email = "dogtopus@users.noreply.github.com"}
 ]
 readme = "README.md"
-license = "GPL-3.0-only"
+license = "GPL-3.0-or-later"
 requires-python = ">=3.8"
 dependencies = [
 ]

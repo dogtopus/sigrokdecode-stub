@@ -173,21 +173,6 @@ class SupportsFlush(Protocol):
         raise NotImplementedError()
 
 
-class SupportsReset(Protocol):
-    '''
-    Decoder class supports handling the reset event from libsigrok.
-    '''
-    @abstractmethod
-    def reset(self) -> None:
-        '''
-        Handle the reset event from libsigrokdecode.
-
-        The implementation shall reset the protocol decoder to its initial
-        state.
-        '''
-        raise NotImplementedError()
-
-
 class SupportsMetadata(Protocol):
     '''
     Decoder class supports receiving metadata from libsigrok.

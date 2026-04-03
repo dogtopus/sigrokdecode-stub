@@ -22,7 +22,7 @@ SRD_CONF_SAMPLERATE: Final[int] = ...
 'libsigrokdecode metadata type: Capture samplerate'
 
 
-class Decoder(Generic[OPT], Protocol):
+class AbstractDecoder(Generic[OPT], Protocol):
     '''
     The decoder abstract class. All decoders shall be built upon this class and
     implement all abstract methods.
@@ -226,15 +226,25 @@ class Decoder(Generic[OPT], Protocol):
         '''
         ...
 
+    @abstractmethod
+    def reset(self) -> None:
+        '''
+        Handle the reset event from libsigrokdecode.
 
-class BottomDecoder(Generic[OPT], Decoder[OPT], AsBottom, Protocol):
+        The implementation shall reset the protocol decoder to its initial
+        state.
+        '''
+        raise NotImplementedError()
+
+
+class BottomDecoder(Generic[OPT], AbstractDecoder[OPT], AsBottom, Protocol):
     '''
     Base class for a bottom decoder.
     '''
     pass
 
 
-class StackedDecoder(Generic[IPT, OPT], Decoder[OPT], AsStacked[IPT], Protocol):
+class StackedDecoder(Generic[IPT, OPT], AbstractDecoder[OPT], AsStacked[IPT], Protocol):
     '''
     Base class for a stacked decoder.
     '''
