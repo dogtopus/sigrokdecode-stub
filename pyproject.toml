@@ -1,7 +1,7 @@
 [project]
-name = "sigrokdecode-stub"
+name = "typedsigrokdecode"
 version = "0.6.0.20260401"
-description = "Stub version of libsigrokdecode"
+description = "Typed wrapper of libsigrokdecode"
 authors = [
     {name = "dogtopus",email = "dogtopus@users.noreply.github.com"}
 ]
@@ -12,7 +12,7 @@ dependencies = [
 ]
 
 [tool.poetry]
-packages = [{include = "sigrokdecode", from = "src"}]
+packages = [{include = "typedsigrokdecode", from = "src"}]
 
 
 [build-system]

@@ -1,7 +1,3 @@
-'''
-sigrokdecode module stub
-'''
-
 class Decoder:
     def put(self, start_sample, end_sample, output_id, data, /):
         raise NotImplementedError('This is a stub.')
