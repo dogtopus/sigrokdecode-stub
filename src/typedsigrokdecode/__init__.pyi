@@ -27,8 +27,8 @@ class AbstractDecoder(Generic[OPT], Protocol):
     The decoder abstract class. All decoders shall be built upon this class and
     implement all abstract methods.
 
-    The OPT type variable can be used to specify the output type of Python
-    callback initiated by the put() method.
+    The OPT type variable can be used to specify the type of message sent with
+    the put() method.
 
     Note that Python type checkers do not enforce concrete classes during
     declaration, only on instantiation. Therefore one needs to instantiate
@@ -67,14 +67,14 @@ class AbstractDecoder(Generic[OPT], Protocol):
     tags.
     '''
 
-    matched: Optional[Tuple[int, ...]]
-    'Input channel match state.'
+    matched: Optional[Tuple[bool, ...]] = ...
+    '''
+    Wait condition match state. Length is the same as the ConditionList last
+    passed to wait() method.
+    '''
 
-    samplenum: int
-    'Input sample offset'
-
-    # Bad sigrok, very bad sigrok
-    #options: OptionValues
+    samplenum: int = ...
+    'Current absolute input sample offset.'
 
     @overload
     def put(self, start_sample: int, end_sample: int, output_id: AnnotationStream, data: ClassAnnotationPair, /) -> None:
@@ -182,7 +182,7 @@ class AbstractDecoder(Generic[OPT], Protocol):
         '''
         ...
 
-    def wait(self, condition: Optional[ConditionList], /) -> Optional[Tuple[int, ...]]:
+    def wait(self, condition: Optional[ConditionList]) -> Optional[Tuple[int, ...]]:
         '''
         Wait for one or more conditions to occur.
 
@@ -224,7 +224,8 @@ class AbstractDecoder(Generic[OPT], Protocol):
     def start(self) -> None:
         '''
         Prepare the decoder after initialization. Generally things like
-        registering the output channels should be done here.
+        registering the output channels and parsing of instance options
+        should be done here.
         '''
         ...
 
@@ -236,18 +237,30 @@ class AbstractDecoder(Generic[OPT], Protocol):
         The implementation shall reset the protocol decoder to its initial
         state.
         '''
-        raise NotImplementedError()
+        ...
 
 
 class BottomDecoder(Generic[OPT], AbstractDecoder[OPT], AsBottom, Protocol):
     '''
-    Base class for a bottom decoder.
+    Abstract class of a bottom (non-stacked) decoder.
+
+    The OPT type variable can be used to specify the type of message sent with
+    the put() method.
+
+    The same limitation on concrete class handling also applies to this class.
     '''
     pass
 
 
 class StackedDecoder(Generic[IPT, OPT], AbstractDecoder[OPT], AsStacked[IPT], Protocol):
     '''
-    Base class for a stacked decoder.
+    Abstract class of a stacked decoder.
+
+    The IPT type variable can be used to specify the type of the data received
+    through the decode() method that was previously sent from other decoders
+    via put(), and the OPT type variable can be used to specify the type of
+    message sent with the put() method.
+
+    The same limitation on concrete class handling also applies to this class.
     '''
     pass

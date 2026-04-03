@@ -36,14 +36,21 @@ class ChannelEntry(TypedDict):
 
 ClassAnnotationPair: TypeAlias = Tuple[int, List[str]]
 '(class, [very long desc, long desc, desc, ...])'
+
 ClassBytesPair: TypeAlias = Tuple[int, bytes]
 NameDescPair: TypeAlias = Tuple[str, str]
 NameDescClasses: TypeAlias = Tuple[str, str, Tuple[int, ...]]
-ChannelId: TypeAlias = Union[int, str]
-ChannelCondition: TypeAlias = Literal['h', 'l', 'r', 'f', 'e', 'skip']
+ChannelStatePattern: TypeAlias = Literal['h', 'l', 'r', 'f', 'e', 'n']
 
+ChannelCondition: TypeAlias = Dict[int, ChannelStatePattern]
+'{channel_id: pattern (hIGH, lOW, rISING, fALLING, eDGE, nOEDGE)}'
 
-Condition: TypeAlias = Dict[ChannelId, ChannelCondition]
+SkipCondition: TypeAlias = Dict[Literal['skip'], int]
+'{"skip": num_samples}'
+
+# Blocking the attempt at mixing channel key and skip key because it's tricky to type and that it doesn't make much sense anyway.
+# This may be changed if there's proof that it has legit use cases.
+Condition: TypeAlias = Union[ChannelCondition, SkipCondition]
 ConditionList: TypeAlias = Union[List[Condition], Condition]
 
 
@@ -83,9 +90,11 @@ class AsBottom(Protocol):
     Decoder is at the bottom of the decoder stack.
     '''
     @abstractmethod
-    def decode(self, /) -> None:
+    def decode(self) -> None:
         '''
         Process decoder request from libsigrokdecode.
+
+        This method should be implemented as a loop that blocks on wait().
         '''
         raise NotImplementedError()
 
@@ -171,7 +180,7 @@ class SupportsMetadata(Protocol):
     Decoder class supports receiving metadata from libsigrok.
     '''
     @abstractmethod
-    def metadata(self, key: int, value: int) -> None:
+    def metadata(self, key: int, value: int, /) -> None:
         '''
         Receive metadata sent over by libsigrokdecode.
 

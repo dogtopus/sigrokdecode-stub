@@ -20,6 +20,10 @@ SRD_CONF_SAMPLERATE = _srd.SRD_CONF_SAMPLERATE
 
 # Do the bare minimum to satisfy runtime requirement
 class AbstractDecoder(Generic[OPT], _srd.Decoder):
+    # Ensure these are always readable
+    matched = None
+    samplenum = 0
+
     def get_options(self):
         return self.options
 
