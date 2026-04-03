@@ -3,7 +3,7 @@ Typing-specific objects.
 '''
 
 from abc import abstractmethod
-from typing import ClassVar, Dict, Generic, List, Literal, NotRequired, Protocol, Tuple, TypeAlias, TypedDict, TypeVar, Union
+from typing import ClassVar, Dict, Generic, List, Literal, NewType, NotRequired, Protocol, Tuple, TypeAlias, TypedDict, TypeVar, Union
 
 
 # This is a hack that provides a type that's effectively just int, but different
@@ -11,24 +11,11 @@ from typing import ClassVar, Dict, Generic, List, Literal, NotRequired, Protocol
 # would be defining IntEnums for these constants in the C extension and use
 # e.g. Literal[OutputType.ANN] instead but that seems hard to manage due to the
 # fact that the IntEnum class is implemented in Python.
-class AnnotationConstMarker(int):
-    pass
-
-
-class PythonConstMarker(int):
-    pass
-
-
-class BinaryConstMarker(int):
-    pass
-
-
-class LogicConstMarker(int):
-    pass
-
-
-class MetaConstMarker(int):
-    pass
+AnnotationConstMarker = NewType('AnnotationConstMarker', int)
+PythonConstMarker = NewType('PythonConstMarker', int)
+BinaryConstMarker = NewType('BinaryConstMarker', int)
+LogicConstMarker = NewType('LogicConstMarker', int)
+MetaConstMarker = NewType('MetaConstMarker', int)
 
 
 GVariantBridge: TypeAlias = Union[float, str]
@@ -72,24 +59,11 @@ OutputTypeMeta: TypeAlias = MetaConstMarker
 
 
 # Same as above in concept but these aren't hacks.
-class AnnotationStream(int):
-    pass
-
-
-class PythonStream(int):
-    pass
-
-
-class BinaryStream(int):
-    pass
-
-
-class LogicStream(int):
-    pass
-
-
-class MetaStream(int):
-    pass
+AnnotationStream = NewType('AnnotationStream', int)
+PythonStream = NewType('PythonStream', int)
+BinaryStream = NewType('BinaryStream', int)
+LogicStream = NewType('LogicStream', int)
+MetaStream = NewType('MetaStream', int)
 
 
 OptionValues: TypeAlias = Dict[str, GVariantBridge]
