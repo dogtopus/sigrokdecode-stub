@@ -69,7 +69,7 @@ class AbstractDecoder(Generic[OPT], Protocol):
 
     matched: Optional[Tuple[bool, ...]] = ...
     '''
-    Wait condition match state. Length is the same as the ConditionList last
+    Wait condition match state. Length is the same as the last ConditionList
     passed to wait() method.
     '''
 
@@ -196,8 +196,11 @@ class AbstractDecoder(Generic[OPT], Protocol):
         channel index or a keyword, the value is the operation's parameter.
 
         Supported parameters for channel number keys: 'h', 'l', 'r', 'f',
-        or 'e' for level or edge conditions. Other supported keywords:
+        'e' or 'n' for level or edge conditions. Other supported keywords:
         'skip' to advance over the given number of samples.
+
+        Returns None when requested to terminate the decode() loop, or raises
+        EOFError when reaching the end of samples to be decoded.
         '''
         ...
 
