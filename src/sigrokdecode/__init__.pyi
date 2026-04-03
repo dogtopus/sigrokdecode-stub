@@ -1,8 +1,52 @@
 from abc import abstractmethod
-from typing import Any, ClassVar, Dict, List, Literal, NotRequired, Optional, Protocol, Tuple, TypeAlias, TypedDict, Union
+from typing import ClassVar, Dict, Final, Generic, List, Literal, NotRequired, Optional, Protocol, Tuple, TypeAlias, TypedDict, TypeVar, Union, overload
 
 
-GVariantBridge: TypeAlias = Union[int, float, str]
+# This is a hack that provides a type that's effectively just int, but different
+# enough so type checkers recognize it as something different. The non-hacky way
+# would be defining IntEnums for these constants in the C extension and use
+# e.g. Literal[OutputType.ANN] instead but that seems hard to manage due to the
+# fact that the IntEnum class is implemented in Python.
+class _AnnotationConstMarker(int):
+    pass
+
+
+class _PythonConstMarker(int):
+    pass
+
+
+class _BinaryConstMarker(int):
+    pass
+
+
+class _LogicConstMarker(int):
+    pass
+
+
+class _MetaConstMarker(int):
+    pass
+
+
+OUTPUT_ANN: Final[_AnnotationConstMarker] = ...  # cast(_AnnotationConstMarker, 0)
+'Output type: Annotation'
+
+OUTPUT_PYTHON: Final[_PythonConstMarker] = ...
+'Output type: Custom Python callback'
+
+OUTPUT_BINARY: Final[_BinaryConstMarker] = ...
+'Output type: Binary stream'
+
+OUTPUT_LOGIC: Final[_LogicConstMarker] = ...
+'Output type: Logic'
+
+OUTPUT_META: Final[_MetaConstMarker] = ...
+'Output type: Extra metadata from the decoder'
+
+SRD_CONF_SAMPLERATE: Final[int] = ...
+'libsigrokdecode metadata type: Capture samplerate'
+
+
+GVariantBridge: TypeAlias = Union[float, str]
 
 
 class OptionEntry(TypedDict):
@@ -18,6 +62,7 @@ class ChannelEntry(TypedDict):
     desc: str
 
 
+ClassDescPair: TypeAlias = Tuple[int, str]
 NameDescPair: TypeAlias = Tuple[str, str]
 NameDescClasses: TypeAlias = Tuple[str, str, Tuple[int, ...]]
 ChannelId: TypeAlias = Union[int, str]
@@ -34,6 +79,34 @@ NameDescList: TypeAlias = Tuple[NameDescPair, ...]
 AnnotationRowList: TypeAlias = Tuple[NameDescClasses, ...]
 
 
+OutputTypeAnnotation: TypeAlias = _AnnotationConstMarker
+OutputTypePython: TypeAlias = _PythonConstMarker
+OutputTypeBinary: TypeAlias = _BinaryConstMarker
+OutputTypeLogic: TypeAlias = _LogicConstMarker
+OutputTypeMeta: TypeAlias = _MetaConstMarker
+
+
+# Same as above in concept but these aren't hacks.
+class AnnotationStream(int):
+    pass
+
+
+class PythonStream(int):
+    pass
+
+
+class BinaryStream(int):
+    pass
+
+
+class LogicStream(int):
+    pass
+
+
+class MetaStream(int):
+    pass
+
+
 OptionValues: TypeAlias = Dict[str, GVariantBridge]
 '''
 Option values on an instantiated decoder object.
@@ -47,11 +120,20 @@ is required:
 '''
 
 
-class Decoder(Protocol):
+IPT = TypeVar('IPT', contravariant=True)
+'Input Python type'
+OPT = TypeVar('OPT', contravariant=True)
+'Output Python type'
+
+
+class Decoder(Generic[OPT], Protocol):
     '''
     The decoder abstract class. All decoders shall be built upon this class and
     implement all abstract methods.
-    
+
+    The OPT type variable can be used to specify the output type of Python
+    callback initiated by the put() method.
+
     Note that Python type checkers do not enforce concrete classes during
     declaration, only on instantiation. Therefore one needs to instantiate
     the resulting decoder (preferably wrapped in TYPE_CHECKING) to ensure
@@ -105,7 +187,8 @@ class Decoder(Protocol):
     # that can be taken by data, we can use list[Any] or list[GVariantBridge]
     # but such type hints are not precise enough to be worthwhile. Mypy plugin
     # won't work on Pyright on VSCode and on whatever JB uses on their IDEs.)
-    def put(self, start_sample: int, end_sample: int, output_id: int, data: Any, /) -> None:
+    @overload
+    def put(self, start_sample: int, end_sample: int, output_id: AnnotationStream, data: ClassDescPair, /) -> None:
         '''
         Put an annotation for the specified span of samples.
 
@@ -114,10 +197,98 @@ class Decoder(Protocol):
         '''
         ...
 
-    def register(self, output_type: int, /, proto_id: str = ..., meta: Tuple[Union[int, float], str, str] = ...) -> int:
+    @overload
+    def put(self, start_sample: int, end_sample: int, output_id: PythonStream, data: OPT, /) -> None:
         '''
-        Register a new output stream.
+        Put an annotation for the specified span of samples.
+
+        Arguments: start and end sample number, stream id, annotation data.
+        Annotation data's layout depends on the output stream type.
+        '''
+        ...
+
+    @overload
+    def put(self, start_sample: int, end_sample: int, output_id: BinaryStream, data: ClassDescPair, /) -> None:
+        '''
+        Put an annotation for the specified span of samples.
+
+        Arguments: start and end sample number, stream id, annotation data.
+        Annotation data's layout depends on the output stream type.
+        '''
+        ...
+
+    @overload
+    def put(self, start_sample: int, end_sample: int, output_id: LogicStream, data: ClassDescPair, /) -> None:
+        '''
+        Put an annotation for the specified span of samples.
+
+        Arguments: start and end sample number, stream id, annotation data.
+        Annotation data's layout depends on the output stream type.
+        '''
+        ...
+
+    @overload
+    def put(self, start_sample: int, end_sample: int, output_id: MetaStream, data: float, /) -> None:
+        '''
+        Put an annotation for the specified span of samples.
+
+        Arguments: start and end sample number, stream id, annotation data.
+        Annotation data's layout depends on the output stream type.
+        '''
+        ...
+
+    @overload
+    def register(self, output_type: OutputTypeAnnotation, /, proto_id: str = ...) -> AnnotationStream:
+        '''
+        Register a new annotation output stream.
+
+        Returns an output stream ID that can be used later with put().
+        '''
+        ...
+
+    @overload
+    def register(self, output_type: OutputTypePython, /, proto_id: str = ...) -> PythonStream:
+        '''
+        Register a new Python (stacked decoder callback) output stream.
+
+        Returns an output stream ID that can be used later with put().
+        '''
+        ...
+
+    @overload
+    def register(self, output_type: OutputTypeBinary, /, proto_id: str = ...) -> BinaryStream:
+        '''
+        Register a new binary output stream.
         
+        Returns an output stream ID that can be used later with put().
+        '''
+        ...
+
+    @overload
+    def register(self, output_type: OutputTypeLogic, /, proto_id: str = ...) -> LogicStream:
+        '''
+        Register a new logic output stream.
+
+        Returns an output stream ID that can be used later with put().
+        '''
+        ...
+
+    @overload
+    def register(self, output_type: OutputTypeMeta, /, proto_id: str = ..., meta: Tuple[type[float], str, str] = ...) -> MetaStream:
+        '''
+        Register a new metadata output stream.
+
+        An argument named meta needs to be specified that has the format of
+        (type, name, desc). type must be either int or float, and name/desc
+        are strings.
+
+        Note that Python type checker does not differentiate int and float
+        enough like sigrokdecode would. It treats float as a Union of both
+        int and the actual float type. Therefore one still needs to be careful
+        not to pass the wrong type when invoking put(). Anything too wrong
+        however (e.g. passing a str as data) can be caught automatically by
+        the type checker.
+
         Returns an output stream ID that can be used later with put().
         '''
         ...
@@ -172,26 +343,26 @@ class AsBottom(Protocol):
         ...
 
 
-class AsStacked(Protocol):
+class AsStacked(Generic[IPT], Protocol):
     '''
     Decoder is on top of other decoder(s).
     '''
     @abstractmethod
-    def decode(self, start_sample: int, end_sample: int, data: Any, /) -> None:
+    def decode(self, start_sample: int, end_sample: int, data: IPT, /) -> None:
         '''
         Process custom decode request from other decoders.
         '''
         ...
 
 
-class BottomDecoder(Decoder, AsBottom, Protocol):
+class BottomDecoder(Generic[OPT], Decoder[OPT], AsBottom, Protocol):
     '''
     Base class for a bottom decoder.
     '''
     pass
 
 
-class StackedDecoder(Decoder, AsStacked, Protocol):
+class StackedDecoder(Generic[IPT, OPT], Decoder[OPT], AsStacked[IPT], Protocol):
     '''
     Base class for a stacked decoder.
     '''
@@ -228,7 +399,7 @@ class HasAnnotations(Protocol):
 
 class HasAnnotationRows(Protocol):
     '''
-    Mark the decoder as that it provides annotation row ("channel")
+    Mark the decoder as that it provides annotation row
     descriptions.
     '''
     annotation_rows: ClassVar[AnnotationRowList]
@@ -236,7 +407,7 @@ class HasAnnotationRows(Protocol):
 
 class HasBinary(Protocol):
     '''
-    Mark the decoder as that it provides binary stream ("channel")
+    Mark the decoder as that it provides binary stream row
     descriptions.
     '''
     binary: ClassVar[NameDescList]
@@ -282,22 +453,3 @@ class SupportsMetadata(Protocol):
         which indicates the capture sample rate.
         '''
         ...
-
-
-OUTPUT_ANN: int = ...
-'Output type: Annotation'
-
-OUTPUT_PYTHON: int = ...
-'Output type: Custom Python callback'
-
-OUTPUT_BINARY: int = ...
-'Output type: Binary stream'
-
-OUTPUT_LOGIC: int = ...
-'Output type: Logic'
-
-OUTPUT_META: int = ...
-'Output type: Extra metadata from the decoder'
-
-SRD_CONF_SAMPLERATE: int = ...
-'libsigrokdecode metadata type: Capture samplerate'
